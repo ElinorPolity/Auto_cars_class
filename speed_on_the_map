@@ -2,28 +2,58 @@ import pandas as pd
 import numpy as py
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from os import listdir
+from os.path import isfile, join
 
 def turn_to_plot(url,index,num_of_fig):
-    #converting the json to data frame 
-    df=pd.read_json(url)
-    df = (pd.DataFrame(df['Logs'].values.tolist()).join(df.drop('Logs', 1)))
-    df=pd.DataFrame.from_dict(df, orient='columns')
-    #choosing the right rows and columns
-    GPS=df[df.Type=='GPS']
-    #creating the fig by the Longitude,Latitude,Speed
-    x1=num_of_fig[index].scatter(x=GPS.Longitude,y=GPS.Latitude,c=GPS.Speed)
-    #adding a colorbar
-    divider = make_axes_locatable(num_of_fig[index])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    fig.colorbar(x1, cax=cax, orientation='vertical',label="speed") 
-    
-if __name__ == "__main__": 
-    fig, (ax1, ax2,ax3) = plt.subplots(1, 3,figsize=(30,10))#creating a subplot
-    num_of_fig=[ax1,ax2,ax3]#list of the axs of each plot
-    url_list=['C:\Auto_cars_class\\example_speed_in_latency\\latency 1\\7612(11_12_58)-CognataEngineLog (7).json',
-              'C:\Auto_cars_class\\example_speed_in_latency\\latency 2\\6798(11_28_00)-CognataEngineLog (8).json',
-              'C:\Auto_cars_class\\example_speed_in_latency\\latency 3\\6752(11_37_42)-CognataEngineLog (9).json']
+    try:
+        df=pd.read_json(url)
+        df = (pd.DataFrame(df['Logs'].values.tolist()).join(df.drop('Logs', 1)))
+        df=pd.DataFrame.from_dict(df, orient='columns')
+        GPS=df[df.Type=='GPS']
+        x1=num_of_fig[index].scatter(x=GPS.Longitude,y=GPS.Latitude,c=GPS.Speed)
+        num_of_fig[index].set_title("latency "+str(index+1))
+        divider = make_axes_locatable(num_of_fig[index])
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        fig.colorbar(x1, cax=cax, orientation='vertical',label="speed m/s")
+        return GPS["Speed"].mean()
+    except:
+        return "failure"
+        
+def save_plot(latency_list,ID):
+    fig, (ax1, ax2,ax3) = plt.subplots(1, 3,figsize=(30,10))
+    num_of_fig=[ax1,ax2,ax3]
+    average_Speed=[0,0,0]
+    url_list=["C:\Auto_cars_class\\example_speed_in_latency\\"+str(ID)+"\\4.Latency\\latency1\\"+latency_list[0],
+              "C:\Auto_cars_class\\example_speed_in_latency\\"+str(ID)+"\\4.Latency\\latency2\\"+latency_list[1],
+              "C:\Auto_cars_class\\example_speed_in_latency\\"+str(ID)+"\\4.Latency\\latency3\\"+latency_list[2]]
+    print(url_list)
     index=0
     for url in url_list:
-        turn_to_plot(url,index,num_of_fig)
+        average_Speed[index]=turn_to_plot(url,index,num_of_fig)
         index+=1
+    fig.savefig(r"C:\Auto_cars_class\\example_speed_in_latency\\"+str(ID)+"\\4.Latency\\"+str(ID)+" analized_speed.png",dpi=300, bbox_inches='tight')
+    return average_Speed
+
+
+if __name__ == "__main__": 
+    ID_participant=pd.read_csv("C:\Auto_cars_class\Participants ID to the course.csv")
+    latency_list=["latency1","latency2","latency3"]
+    average_Speed_all_paticipants=pd.DataFrame(columns=["latency1","latency2","latency3"])
+    for ID in ID_participant["Participants ID"].tolist() :
+        NUM_LATENCY=1
+        while NUM_LATENCY<4:
+            mypath="C:\Auto_cars_class\\example_speed_in_latency\\"+str(ID)+"\\4.Latency\latency"+str(NUM_LATENCY)
+            myfiles=listdir(mypath)
+            for file in myfiles :
+                if "Engine" in file :
+                    latency_list[NUM_LATENCY-1]=file
+            NUM_LATENCY+=1
+        
+        to_append = save_plot(latency_list,ID)
+        df_length = len(average_Speed_all_paticipants)
+        average_Speed_all_paticipants.loc[df_length] = to_append
+    print(average_Speed_all_paticipants)
+    print("the average of all the participants in latency 1 is : "+str(average_Speed_all_paticipants["latency1"].mean()))
+    print("the average of all the participants in latency 2 is : "+str(average_Speed_all_paticipants["latency2"].mean()))
+    print("the average of all the participants in latency 3 is : "+str(average_Speed_all_paticipants["latency3"].mean()))
